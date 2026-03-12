@@ -482,34 +482,34 @@ $upcoming_occ = $conn->query("
     
     <!-- ═══════ Top Statistics Cards ═══════ -->
     <div class="stats-grid">
-        <div class="stat-card skeleton-item">
+        <a href="facilities/index.php" class="stat-card skeleton-item" style="text-decoration:none;color:inherit;cursor:pointer;">
             <div class="stat-icon facilities-icon">🏢</div>
             <div class="stat-info">
                 <h3><?= $total_facilities ?></h3>
                 <p>Total Facilities</p>
             </div>
-        </div>
-        <div class="stat-card skeleton-item">
+        </a>
+        <a href="facilities/index.php" class="stat-card skeleton-item" style="text-decoration:none;color:inherit;cursor:pointer;">
             <div class="stat-icon available-icon">✅</div>
             <div class="stat-info">
                 <h3><?= $available_facilities ?></h3>
                 <p>Available Facilities</p>
             </div>
-        </div>
-        <div class="stat-card skeleton-item">
+        </a>
+        <a href="reservations/index.php" class="stat-card skeleton-item" style="text-decoration:none;color:inherit;cursor:pointer;">
             <div class="stat-icon reservations-icon">📅</div>
             <div class="stat-info">
                 <h3><?= $total_reservations ?></h3>
                 <p>Total Reservations</p>
             </div>
-        </div>
-        <div class="stat-card skeleton-item">
+        </a>
+        <a href="reservations/index.php?date_from=<?= $today ?>&date_to=<?= $today ?>" class="stat-card skeleton-item" style="text-decoration:none;color:inherit;cursor:pointer;">
             <div class="stat-icon today-icon">📆</div>
             <div class="stat-info">
                 <h3><?= $today_reservations ?></h3>
                 <p>Today's Reservations</p>
             </div>
-        </div>
+        </a>
     </div>
     
     <!-- ═══════ Ongoing Events Banner ═══════ -->
@@ -566,22 +566,22 @@ $upcoming_occ = $conn->query("
     <!-- ═══════ Status Overview ═══════ -->
     <h2>Reservation Status Overview</h2>
     <div class="status-grid" style="grid-template-columns: repeat(4, 1fr);">
-        <div class="status-card pending skeleton-item">
+        <a href="reservations/index.php?status=PENDING" class="status-card pending skeleton-item" style="text-decoration:none;color:inherit;cursor:pointer;">
             <h3><?= $pending_reservations ?></h3>
             <p>Pending</p>
-        </div>
-        <div class="status-card approved skeleton-item">
+        </a>
+        <a href="reservations/index.php?status=APPROVED" class="status-card approved skeleton-item" style="text-decoration:none;color:inherit;cursor:pointer;">
             <h3><?= $approved_reservations ?></h3>
             <p>Approved</p>
-        </div>
-        <div class="status-card rejected skeleton-item">
+        </a>
+        <a href="reservations/index.php?status=REJECTED" class="status-card rejected skeleton-item" style="text-decoration:none;color:inherit;cursor:pointer;">
             <h3><?= $rejected_reservations ?></h3>
             <p>Rejected</p>
-        </div>
-        <div class="status-card cancelled skeleton-item">
+        </a>
+        <a href="reservations/index.php?status=CANCELLED" class="status-card cancelled skeleton-item" style="text-decoration:none;color:inherit;cursor:pointer;">
             <h3><?= $cancelled_reservations ?></h3>
             <p>Cancelled</p>
-        </div>
+        </a>
     </div>
 
     <!-- ═══════ Revenue Summary ═══════ -->

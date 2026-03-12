@@ -350,6 +350,137 @@ tr:hover td {
     background: #e5e7eb;
 }
 
+/* ═══════ Filter Bar ═══════ */
+.filter-bar {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    border: 1px solid rgba(1, 60, 16, 0.08);
+}
+.filter-row {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+.filter-group {
+    flex: 1;
+    min-width: 140px;
+}
+.filter-input,
+.filter-select {
+    width: 100%;
+    padding: 0.6rem 0.85rem;
+    border: 1.5px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-family: 'Inter', sans-serif;
+    background: #f9fafb;
+    color: #1a1a1a;
+    transition: all 0.2s;
+}
+.filter-input:focus,
+.filter-select:focus {
+    outline: none;
+    border-color: #013c10;
+    box-shadow: 0 0 0 3px rgba(1, 60, 16, 0.08);
+    background: #fff;
+}
+.filter-actions {
+    display: flex;
+    gap: 0.5rem;
+    min-width: auto;
+    flex: 0;
+}
+.filter-btn {
+    padding: 0.6rem 1.25rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: #013c10;
+    color: #fff;
+    transition: all 0.2s;
+    text-decoration: none;
+    white-space: nowrap;
+    display: inline-block;
+    font-family: 'Inter', sans-serif;
+}
+.filter-btn:hover {
+    background: #015a18;
+}
+.filter-btn-clear {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+.filter-btn-clear:hover {
+    background: #e5e7eb;
+}
+.filter-summary {
+    margin-top: 0.75rem;
+    font-size: 0.8rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+/* ═══════ Pagination ═══════ */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 1.5rem 0 0.5rem;
+}
+.page-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 0.75rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    color: #013c10;
+    background: #ffffff;
+    border: 1.5px solid rgba(1, 60, 16, 0.15);
+    transition: all 0.2s;
+}
+.page-btn:hover {
+    background: #f0f7f2;
+    border-color: #013c10;
+}
+.page-btn.active {
+    background: #013c10;
+    color: #ffffff;
+    border-color: #013c10;
+}
+.page-dots {
+    color: #9ca3af;
+    font-size: 0.85rem;
+    padding: 0 0.25rem;
+}
+
+/* ═══════ Approve button (form-based) ═══════ */
+.action-links .approve {
+    background: #dcfce7;
+    color: #166534;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+.action-links .approve:hover {
+    background: #bbf7d0;
+}
+
 @media (max-width: 768px) {
     .main-content {
         margin-left: 0;
@@ -359,5 +490,16 @@ tr:hover td {
         display: block;
         overflow-x: auto;
         white-space: nowrap;
+    }
+
+    .filter-row {
+        flex-direction: column;
+    }
+    .filter-group {
+        min-width: 100%;
+    }
+    .filter-actions {
+        flex: 1;
+        min-width: 100%;
     }
 }

@@ -7,22 +7,26 @@ if (!isset($_SESSION["admin_id"])) {
 
 require_once("../config/db.php");
 require_once("../config/audit_helper.php");
+require_once("../config/csrf.php");
 
 // ═══════ Handle Bulk Conflict Rejection (from conflict modal) ═══════
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["conflict_resolve"])) {
+    requireCSRF();
     $approve_id = intval($_POST["approve_id"]);
     $reject_reason = trim($_POST["reject_reason"] ?? '');
+    $approval_reason = trim($_POST["approval_reason"] ?? '');
     $conflict_ids = isset($_POST["conflict_ids"]) ? array_map('intval', explode(',', $_POST["conflict_ids"])) : [];
 
     if (empty($reject_reason)) {
         $error = "A rejection reason is required when resolving conflicts.";
+    } elseif (empty($approval_reason)) {
+        $error = "An approval reason is required.";
     } else {
-        // 1. Approve the selected reservation
-        $conn->prepare("UPDATE reservations SET status = 'APPROVED' WHERE id = ?")->bind_param("i", $approve_id) || true;
-        $stmt = $conn->prepare("UPDATE reservations SET status = 'APPROVED' WHERE id = ?");
-        $stmt->bind_param("i", $approve_id);
+        // 1. Approve the selected reservation with reason
+        $stmt = $conn->prepare("UPDATE reservations SET status = 'APPROVED', approval_reason = ? WHERE id = ?");
+        $stmt->bind_param("si", $approval_reason, $approve_id);
         $stmt->execute();
-        logActivity($conn, 'UPDATE', 'RESERVATION', $approve_id, "Approved reservation ID $approve_id (conflict resolved)", null, ['status' => 'APPROVED']);
+        logActivity($conn, 'UPDATE', 'RESERVATION', $approve_id, "Approved reservation ID $approve_id. Reason: $approval_reason", null, ['status' => 'APPROVED', 'approval_reason' => $approval_reason]);
 
         // 2. Reject all conflicting reservations with the provided reason
         foreach ($conflict_ids as $cid) {
@@ -40,9 +44,28 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["conflict_resolve"])) 
     }
 }
 
-// ═══════ Handle Approve ═══════
-if (isset($_GET["approve"])) {
-    $id = intval($_GET["approve"]);
+// ═══════ Handle Simple Approval With Reason (POST) ═══════
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["approve_reason_submit"])) {
+    requireCSRF();
+    $id = intval($_POST["approve_id"]);
+    $approval_reason = trim($_POST["approval_reason"] ?? '');
+
+    if (empty($approval_reason)) {
+        $error = "An approval reason is required.";
+    } else {
+        $upd = $conn->prepare("UPDATE reservations SET status = 'APPROVED', approval_reason = ? WHERE id = ?");
+        $upd->bind_param("si", $approval_reason, $id);
+        $upd->execute();
+        logActivity($conn, 'UPDATE', 'RESERVATION', $id, "Approved reservation ID $id. Reason: $approval_reason", null, ['status' => 'APPROVED', 'approval_reason' => $approval_reason]);
+        header("Location: index.php?msg=Reservation approved successfully.");
+        exit;
+    }
+}
+
+// ═══════ Handle Approve (POST) ═══════
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["approve_id"]) && !isset($_POST["conflict_resolve"])) {
+    requireCSRF();
+    $id = intval($_POST["approve_id"]);
 
     // Get reservation details
     $stmt = $conn->prepare("SELECT r.*, f.name AS facility_name FROM reservations r JOIN facilities f ON r.facility_id = f.id WHERE r.id = ?");
@@ -91,21 +114,17 @@ if (isset($_GET["approve"])) {
                 $show_conflict_modal = true;
                 $approve_target = $res;
             } else {
-                // No conflicts — approve directly
-                $upd = $conn->prepare("UPDATE reservations SET status = 'APPROVED' WHERE id = ?");
-                $upd->bind_param("i", $id);
-                $upd->execute();
-                logActivity($conn, 'UPDATE', 'RESERVATION', $id, "Approved reservation ID $id", null, ['status' => 'APPROVED']);
-                header("Location: index.php?msg=Reservation approved successfully.");
-                exit;
+                $show_approve_modal = true;
+                $approve_target = $res;
             }
             $pcheck->close();
         }
     }
 }
 
-// ═══════ Handle Reject (with reason) ═══════
-if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["reject_id"])) {
+// ═══════ Handle Reject (with reason, POST) ═══════
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["reject_id"]) && !isset($_POST["conflict_resolve"]) && !isset($_POST["approve_id"])) {
+    requireCSRF();
     $id = intval($_POST["reject_id"]);
     $reject_reason = trim($_POST["reject_reason"] ?? '');
 
@@ -156,13 +175,92 @@ while ($cr = $cq->fetch_assoc()) {
     $conflict_map[$cr['res_id']] = $cr['conflict_count'];
 }
 
-// Fetch reservations with facility name
-$result = $conn->query("
+// ═══════ Search & Filter Parameters ═══════
+$filter_search = trim($_GET['search'] ?? '');
+$filter_status = $_GET['status'] ?? '';
+$filter_facility = $_GET['facility'] ?? '';
+$filter_date_from = $_GET['date_from'] ?? '';
+$filter_date_to = $_GET['date_to'] ?? '';
+$page = max(1, intval($_GET['page'] ?? 1));
+$per_page = 15;
+$offset = ($page - 1) * $per_page;
+
+// Build WHERE clause dynamically
+$where_clauses = [];
+$bind_types = '';
+$bind_values = [];
+
+if (!empty($filter_search)) {
+    $where_clauses[] = "r.fb_name LIKE ?";
+    $bind_types .= 's';
+    $bind_values[] = '%' . $filter_search . '%';
+}
+if (!empty($filter_status)) {
+    $where_clauses[] = "r.status = ?";
+    $bind_types .= 's';
+    $bind_values[] = $filter_status;
+}
+if (!empty($filter_facility)) {
+    $where_clauses[] = "r.facility_id = ?";
+    $bind_types .= 'i';
+    $bind_values[] = intval($filter_facility);
+}
+if (!empty($filter_date_from)) {
+    $where_clauses[] = "r.reservation_date >= ?";
+    $bind_types .= 's';
+    $bind_values[] = $filter_date_from;
+}
+if (!empty($filter_date_to)) {
+    $where_clauses[] = "r.reservation_date <= ?";
+    $bind_types .= 's';
+    $bind_values[] = $filter_date_to;
+}
+
+$where_sql = count($where_clauses) > 0 ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
+
+// Count total for pagination
+$count_sql = "SELECT COUNT(*) as total FROM reservations r $where_sql";
+if (!empty($bind_types)) {
+    $count_stmt = $conn->prepare($count_sql);
+    $count_stmt->bind_param($bind_types, ...$bind_values);
+    $count_stmt->execute();
+    $total_records = $count_stmt->get_result()->fetch_assoc()['total'];
+    $count_stmt->close();
+} else {
+    $total_records = $conn->query($count_sql)->fetch_assoc()['total'];
+}
+$total_pages = max(1, ceil($total_records / $per_page));
+if ($page > $total_pages) $page = $total_pages;
+
+// Fetch filtered + paginated reservations
+$data_sql = "
     SELECT r.*, f.name AS facility_name
     FROM reservations r
     JOIN facilities f ON r.facility_id = f.id
+    $where_sql
     ORDER BY r.created_at DESC
-");
+    LIMIT $per_page OFFSET $offset
+";
+if (!empty($bind_types)) {
+    $data_stmt = $conn->prepare($data_sql);
+    $data_stmt->bind_param($bind_types, ...$bind_values);
+    $data_stmt->execute();
+    $result = $data_stmt->get_result();
+} else {
+    $result = $conn->query($data_sql);
+}
+
+// Fetch facilities for filter dropdown
+$facilities_list = $conn->query("SELECT id, name FROM facilities ORDER BY name ASC");
+
+// Build query string for pagination links (preserve filters)
+$filter_params = http_build_query(array_filter([
+    'search' => $filter_search,
+    'status' => $filter_status,
+    'facility' => $filter_facility,
+    'date_from' => $filter_date_from,
+    'date_to' => $filter_date_to,
+]));
 
 ?>
 
@@ -397,9 +495,10 @@ $result = $conn->query("
         <p class="error"><?= htmlspecialchars($error) ?></p>
     <?php endif; ?>
     
-    <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+    <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
         <a href="create.php" class="add-btn">+ Create Reservation</a>
         <a href="walkin_create.php" class="add-btn">🚶 Walk-in Reservation</a>
+        <a href="export.php?<?= $filter_params ?>" class="add-btn" style="background: #e0e7ff; color: #3730a3; box-shadow: 0 2px 8px rgba(67,56,202,0.15);">📥 Export CSV</a>
     </div>
     
     <?php if (isset($_GET['msg'])): ?>
@@ -408,6 +507,49 @@ $result = $conn->query("
     <?php if (isset($_GET['error'])): ?>
         <p class="error"><?= htmlspecialchars($_GET['error']) ?></p>
     <?php endif; ?>
+
+    <!-- ═══════ Search & Filter Bar ═══════ -->
+    <form method="GET" action="index.php" class="filter-bar">
+        <div class="filter-row">
+            <div class="filter-group">
+                <input type="text" name="search" placeholder="🔍 Search by name..." value="<?= htmlspecialchars($filter_search) ?>" class="filter-input">
+            </div>
+            <div class="filter-group">
+                <select name="status" class="filter-select">
+                    <option value="">All Statuses</option>
+                    <?php
+                    $statuses = ['PENDING','APPROVED','REJECTED','CANCELLED','EXPIRED','ON_HOLD','PENDING_VERIFICATION','WAITLISTED'];
+                    foreach ($statuses as $s):
+                    ?>
+                        <option value="<?= $s ?>" <?= $filter_status === $s ? 'selected' : '' ?>><?= $s ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="filter-group">
+                <select name="facility" class="filter-select">
+                    <option value="">All Facilities</option>
+                    <?php while($fl = $facilities_list->fetch_assoc()): ?>
+                        <option value="<?= $fl['id'] ?>" <?= $filter_facility == $fl['id'] ? 'selected' : '' ?>><?= htmlspecialchars($fl['name']) ?></option>
+                    <?php endwhile; ?>
+                </select>
+            </div>
+            <div class="filter-group">
+                <input type="date" name="date_from" value="<?= htmlspecialchars($filter_date_from) ?>" class="filter-input" placeholder="From" title="From date">
+            </div>
+            <div class="filter-group">
+                <input type="date" name="date_to" value="<?= htmlspecialchars($filter_date_to) ?>" class="filter-input" placeholder="To" title="To date">
+            </div>
+            <div class="filter-group filter-actions">
+                <button type="submit" class="filter-btn">Filter</button>
+                <a href="index.php" class="filter-btn filter-btn-clear">Clear</a>
+            </div>
+        </div>
+        <?php if ($total_records > 0): ?>
+        <div class="filter-summary">
+            Showing <?= ($offset + 1) ?>–<?= min($offset + $per_page, $total_records) ?> of <?= $total_records ?> reservation<?= $total_records != 1 ? 's' : '' ?>
+        </div>
+        <?php endif; ?>
+    </form>
     
     <table>
         <tr>
@@ -484,7 +626,11 @@ $result = $conn->query("
             <td>
                 <div class="action-links">
                     <?php if ($row["status"] == "PENDING"): ?>
-                        <a href="?approve=<?= $row["id"] ?>" class="approve">Approve</a>
+                        <form method="POST" action="index.php" style="display:inline;">
+                            <?php csrfField(); ?>
+                            <input type="hidden" name="approve_id" value="<?= $row["id"] ?>">
+                            <button type="submit" class="approve" style="border:none;cursor:pointer;font-family:inherit;">Approve</button>
+                        </form>
                         <a href="javascript:void(0)" class="reject" onclick="showRejectModal(<?= $row['id'] ?>, '<?= htmlspecialchars($row['fb_name'], ENT_QUOTES) ?>')" >Reject</a>
                     <?php elseif ($row["status"] == "APPROVED"): ?>
                         <a href="print.php?id=<?= $row["id"] ?>" class="print">Print</a>
@@ -503,6 +649,30 @@ $result = $conn->query("
         </tr>
         <?php endwhile; ?>
     </table>
+
+    <!-- ═══════ Pagination Controls ═══════ -->
+    <?php if ($total_pages > 1): ?>
+    <div class="pagination">
+        <?php if ($page > 1): ?>
+            <a href="?page=<?= $page - 1 ?>&<?= $filter_params ?>" class="page-btn">← Prev</a>
+        <?php endif; ?>
+
+        <?php
+        $start_page = max(1, $page - 2);
+        $end_page = min($total_pages, $page + 2);
+        if ($start_page > 1) echo '<span class="page-dots">...</span>';
+        for ($p = $start_page; $p <= $end_page; $p++):
+        ?>
+            <a href="?page=<?= $p ?>&<?= $filter_params ?>" class="page-btn <?= $p === $page ? 'active' : '' ?>"><?= $p ?></a>
+        <?php endfor; ?>
+        <?php if ($end_page < $total_pages) echo '<span class="page-dots">...</span>'; ?>
+
+        <?php if ($page < $total_pages): ?>
+            <a href="?page=<?= $page + 1 ?>&<?= $filter_params ?>" class="page-btn">Next →</a>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
     </div>
 </div>
 
@@ -512,6 +682,7 @@ $result = $conn->query("
         <h3 style="color: #dc2626;">❌ Reject Reservation</h3>
         <p id="rejectModalText">Reject this reservation?</p>
         <form method="POST" action="index.php">
+            <?php csrfField(); ?>
             <input type="hidden" name="reject_id" id="rejectIdInput" value="">
             <textarea name="reject_reason" placeholder="Please provide a reason for rejection (required)..." required></textarea>
             <div class="modal-actions">
@@ -544,7 +715,11 @@ $result = $conn->query("
         <p id="deleteModalText">Are you sure?</p>
         <div class="modal-actions" style="justify-content:center;">
             <button type="button" class="modal-btn secondary" onclick="closeDeleteModal()">Cancel</button>
-            <a id="deleteConfirmBtn" href="#" class="modal-btn danger" style="text-decoration:none;">Delete</a>
+            <form id="deleteForm" method="POST" action="delete.php" style="display:inline;">
+                <?php csrfField(); ?>
+                <input type="hidden" name="id" id="deleteIdInput" value="">
+                <button type="submit" class="modal-btn danger">Delete</button>
+            </form>
         </div>
     </div>
 </div>
@@ -576,13 +751,44 @@ $result = $conn->query("
         </div>
 
         <form method="POST" action="index.php">
+            <?php csrfField(); ?>
             <input type="hidden" name="conflict_resolve" value="1">
             <input type="hidden" name="approve_id" value="<?= $approve_target['id'] ?>">
             <input type="hidden" name="conflict_ids" value="<?= implode(',', array_column($conflict_list, 'id')) ?>">
+            
+            <label style="display:block;margin-top:1rem;font-size:0.8rem;font-weight:600;color:#166534;">How did this get approved?</label>
+            <textarea name="approval_reason" placeholder="Successful approval explanation (required)..." required></textarea>
+            
+            <label style="display:block;margin-top:1rem;font-size:0.8rem;font-weight:600;color:#991b1b;">Why were conflicts rejected?</label>
             <textarea name="reject_reason" placeholder="Rejection reason for conflicting reservations (required)..." required></textarea>
+            
             <div class="modal-actions">
                 <a href="index.php" class="modal-btn secondary" style="text-decoration:none;">Go Back</a>
                 <button type="submit" class="modal-btn success">Approve & Reject Conflicts</button>
+            </div>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
+
+<!-- ═══════ Standard Approval Modal (no conflicts) ═══════ -->
+<?php if (isset($show_approve_modal) && $show_approve_modal): ?>
+<div class="modal-overlay active" id="approveModal">
+    <div class="modal-box">
+        <h3 style="color: #166534;">✅ Approve Reservation</h3>
+        <p>Confirm approval for <strong>"<?= htmlspecialchars($approve_target['fb_name']) ?>"</strong> at <strong><?= htmlspecialchars($approve_target['facility_name']) ?></strong>.</p>
+        
+        <form method="POST" action="index.php">
+            <?php csrfField(); ?>
+            <input type="hidden" name="approve_reason_submit" value="1">
+            <input type="hidden" name="approve_id" value="<?= $approve_target['id'] ?>">
+            
+            <label style="display:block;margin-top:1rem;font-size:0.8rem;font-weight:600;color:#166534;">Approval Explanation</label>
+            <textarea name="approval_reason" placeholder="Explain how the user successfully approved (required)..." required></textarea>
+            
+            <div class="modal-actions">
+                <a href="index.php" class="modal-btn secondary" style="text-decoration:none;">Go Back</a>
+                <button type="submit" class="modal-btn success">Approve Reservation</button>
             </div>
         </form>
     </div>
@@ -596,6 +802,7 @@ $result = $conn->query("
         <h3 style="color: #dc2626;">❌ Reject Reservation</h3>
         <p>Reject the reservation by <strong>"<?= htmlspecialchars($reject_target['fb_name']) ?>"</strong> at <strong><?= htmlspecialchars($reject_target['facility_name']) ?></strong>?</p>
         <form method="POST" action="index.php">
+            <?php csrfField(); ?>
             <input type="hidden" name="reject_id" value="<?= $show_reject_modal_id ?>">
             <textarea name="reject_reason" placeholder="Please provide a reason for rejection (required)..." required></textarea>
             <div class="modal-actions">
@@ -646,7 +853,7 @@ document.getElementById('cancelModal').addEventListener('click', function(e) {
 function showDeleteModal(id, name) {
     const modal = document.getElementById('deleteModal');
     document.getElementById('deleteModalText').innerHTML = 'Are you sure you want to permanently delete the reservation by <strong>"' + name + '"</strong>?';
-    document.getElementById('deleteConfirmBtn').href = 'delete.php?id=' + id;
+    document.getElementById('deleteIdInput').value = id;
     modal.classList.add('active');
 }
 function closeDeleteModal() {

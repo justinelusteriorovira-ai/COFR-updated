@@ -4,17 +4,25 @@ if (!isset($_SESSION["admin_id"])) {
     header("Location: ../auth/login.php");
     exit;
 }
-?>
 
-<?php
 require_once("../config/db.php");
+require_once("../config/csrf.php");
 
-if (!isset($_GET["id"]) || !is_numeric($_GET["id"])) {
+// Only accept POST requests
+if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     header("Location: index.php");
     exit;
 }
 
-$id = (int)$_GET["id"];
+// Validate CSRF
+requireCSRF();
+
+if (!isset($_POST["id"]) || !is_numeric($_POST["id"])) {
+    header("Location: index.php");
+    exit;
+}
+
+$id = (int)$_POST["id"];
 
 // Fetch facility details for logging BEFORE deletion
 $fac_stmt = $conn->prepare("SELECT * FROM facilities WHERE id = ?");

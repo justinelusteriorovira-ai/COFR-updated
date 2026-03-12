@@ -1,0 +1,59 @@
+CEFI RESERVATION SYSTEM — IMPROVEMENTS LIST
+=============================================
+Date: March 12, 2026
+
+
+[CRITICAL FIXES]
+
+1. Update database.sql
+   - The SQL file is severely outdated and missing ~15+ columns that the code depends on
+     (e.g. price_per_hour, duration_hours, total_cost, user_type, verification_deadline, etc.)
+   - A fresh deployment from this file will crash.
+
+2. Add CSRF token protection
+   - No forms have CSRF tokens.
+   - Any external site could submit a POST to approve/reject/delete a reservation
+     if the admin is logged in.
+
+3. Convert DELETE & CANCEL to POST requests
+   - Currently delete.php?id=5 is a GET link.
+   - Bots, browser prefetch, or link previews could accidentally trigger deletions.
+
+
+[HIGH PRIORITY]
+
+4. Add pagination to the Reservations page
+   - It loads ALL reservations in one query with no limit.
+   - This will grind to a halt with hundreds of records.
+
+5. Add search & filter to Reservations
+   - No way to filter by name, status, date, or facility.
+   - The Facilities page has search, but Reservations doesn't.
+
+6. Fix XSS in facility error display
+   - facilities/create.php and facilities/edit.php echo $error without htmlspecialchars().
+
+7. Remove dead code
+   - reservations/index.php line 21 has a stray prepared statement that executes
+     and gets discarded.
+
+
+[MEDIUM PRIORITY]
+
+8. Add session timeout
+   - Admin sessions never expire.
+   - If someone forgets to log out on a shared computer, the session remains open indefinitely.
+
+9. Protect API endpoints
+   - api/check_availability.php, api/get_calendar_events.php, etc. have no authentication.
+   - Anyone can query them directly.
+
+10. Add success feedback after creating a facility
+    - Redirects to index with no confirmation message
+      (unlike reservations which shows "created successfully").
+
+11. Add Export (CSV/PDF)
+    - Admins need to export reservation data and audit logs for reporting.
+
+12. Make dashboard stat cards clickable
+    - Clicking "5 Pending" should link to the filtered reservations view.

@@ -6,13 +6,23 @@ if (!isset($_SESSION["admin_id"])) {
 }
 
 require_once("../config/db.php");
+require_once("../config/csrf.php");
 
-if (!isset($_GET["id"]) || !is_numeric($_GET["id"])) {
+// Only accept POST requests
+if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     header("Location: index.php");
     exit;
 }
 
-$id = (int)$_GET["id"];
+// Validate CSRF
+requireCSRF();
+
+if (!isset($_POST["id"]) || !is_numeric($_POST["id"])) {
+    header("Location: index.php");
+    exit;
+}
+
+$id = (int)$_POST["id"];
 
 // Fetch reservation details for logging BEFORE deletion
 $res_stmt = $conn->prepare("SELECT * FROM reservations WHERE id = ?");
@@ -24,12 +34,18 @@ $stmt = $conn->prepare("DELETE FROM reservations WHERE id = ?");
 $stmt->bind_param("i", $id);
 
 $redirect_to = "index.php";
-if (isset($_SERVER['HTTP_REFERER']) && (strpos($_SERVER['HTTP_REFERER'], 'dashboard.php') !== false || strpos($_SERVER['HTTP_REFERER'], 'index.php') !== false)) {
-    $redirect_to = $_SERVER['HTTP_REFERER'];
+if (isset($_POST['redirect_to']) && !empty($_POST['redirect_to'])) {
+    // Only allow relative redirects to prevent open redirect
+    $redirect_to = basename($_POST['redirect_to']);
+    if (!in_array($redirect_to, ['index.php'])) {
+        // Check if it's a dashboard redirect
+        if (strpos($_POST['redirect_to'], 'dashboard.php') !== false) {
+            $redirect_to = '../dashboard.php';
+        } else {
+            $redirect_to = 'index.php';
+        }
+    }
 }
-
-// Clean up existing msg/error if any
-$redirect_to = strtok($redirect_to, '?');
 
 if ($stmt->execute()) {
     if ($reservation) {

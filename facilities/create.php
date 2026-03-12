@@ -7,8 +7,10 @@ if (!isset($_SESSION["admin_id"])) {
 ?>
 <?php
 require_once("../config/db.php");
+require_once("../config/csrf.php");
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    requireCSRF();
 
     $name = trim($_POST["name"]);
     $description = trim($_POST["description"]);
@@ -52,7 +54,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 'close_time' => $close_time
             ]);
 
-            header("Location: index.php");
+            header("Location: index.php?msg=Facility created successfully.");
             exit;
         }
         else {
@@ -93,9 +95,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       <h2>Add Facility</h2>
       
       <?php if (isset($error))
-    echo "<p class='error'>$error</p>"; ?>
+    echo "<p class='error'>" . htmlspecialchars($error) . "</p>"; ?>
       
       <form method="POST">
+        <?php csrfField(); ?>
         <div class="grid-2">
             <div class="input-group">
                 <label for="name">Facility Name</label>

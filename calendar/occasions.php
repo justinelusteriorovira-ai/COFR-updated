@@ -71,7 +71,7 @@ while ($row = $result->fetch_assoc()) {
                         </div>
                     </div>
                     <div class="occ-actions">
-                        <button class="btn-icon edit-occ" data-occ='<?= json_encode($occ) ?>' title="Edit">✏️</button>
+                        <button class="btn-icon edit-occ" data-occ="<?= htmlspecialchars(json_encode($occ), ENT_QUOTES, 'UTF-8') ?>" title="Edit">✏️</button>
                         <button class="btn-icon btn-delete delete-occ" data-id="<?= $occ['id'] ?>" title="Delete">🗑️</button>
                     </div>
                 </div>

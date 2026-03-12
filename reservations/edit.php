@@ -6,6 +6,7 @@ if (!isset($_SESSION["admin_id"])) {
 }
 
 require_once("../config/db.php");
+require_once("../config/csrf.php");
 
 if (!isset($_GET["id"]) || !is_numeric($_GET["id"])) {
     header("Location: index.php");
@@ -37,6 +38,7 @@ $facilities = $conn->query("SELECT id, name FROM facilities WHERE status = 'AVAI
 
 // Handle form submission
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    requireCSRF();
 
     $fb_name = trim($_POST["fb_name"]);
     $fb_user_id = trim($_POST["fb_user_id"]);
@@ -47,6 +49,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $purpose = trim($_POST["purpose"]);
     $status = $_POST["status"];
     $reject_reason = trim($_POST["reject_reason"] ?? '');
+    $approval_reason = trim($_POST["approval_reason"] ?? '');
     $admin_notes = trim($_POST["admin_notes"] ?? '');
     $num_attendees = isset($_POST["num_attendees"]) ? (int)$_POST["num_attendees"] : null;
 
@@ -55,9 +58,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $status = 'PENDING';
     }
 
-    // Require reject reason when rejecting
+    // Require reasons for status changes
     if ($status === 'REJECTED' && empty($reject_reason)) {
         $error = "A rejection reason is required when rejecting a reservation.";
+    }
+    if ($status === 'APPROVED' && empty($approval_reason)) {
+        $error = "An approval reason is required when approving a reservation.";
     }
 
     if (
@@ -106,14 +112,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             UPDATE reservations 
             SET fb_user_id = ?, fb_name = ?, facility_id = ?, 
                 reservation_date = ?, start_time = ?, end_time = ?, 
-                purpose = ?, status = ?, reject_reason = ?, admin_notes = ?,
+                purpose = ?, status = ?, reject_reason = ?, approval_reason = ?, admin_notes = ?,
                 num_attendees = ?, duration_hours = ?, total_cost = ?,
                 user_type = ?, id_number = ?, host_person = ?
             WHERE id = ?
         ");
 
         $stmt->bind_param(
-            "ssisssssssiddsssi",
+            "ssissssssssiddsssi",
             $fb_user_id,
             $fb_name,
             $facility_id,
@@ -123,6 +129,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $purpose,
             $status,
             $reject_reason,
+            $approval_reason,
             $admin_notes,
             $num_attendees,
             $duration_hours,
@@ -137,11 +144,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             require_once("../config/audit_helper.php");
             $actionDetail = "Updated reservation for $fb_name (Status: $status)";
             if ($status === 'REJECTED') $actionDetail .= " — Reason: $reject_reason";
+            if ($status === 'APPROVED') $actionDetail .= " — Reason: $approval_reason";
             
             logActivity($conn, 'UPDATE', 'RESERVATION', $id, $actionDetail, $reservation, [
                 'fb_name' => $fb_name,
                 'status' => $status,
                 'reject_reason' => $reject_reason,
+                'approval_reason' => $approval_reason,
                 'admin_notes' => $admin_notes
             ]);
 
@@ -200,8 +209,8 @@ if ($reservation['verification_deadline']) {
             font-size: 0.85rem;
         }
         
-        .reject-reason-group { display: none; }
-        .reject-reason-group.show { display: flex; }
+        .reject-reason-group, .approve-reason-group { display: none; }
+        .reject-reason-group.show, .approve-reason-group.show { display: flex; }
         
         .admin-section {
             background: #fefce8;
@@ -261,6 +270,7 @@ if ($reservation['verification_deadline']) {
         </div>
         
         <form method="POST">
+            <?php csrfField(); ?>
             <div class="grid-2">
                 <div class="input-group">
                     <label for="fb_name">Full Name</label>
@@ -360,6 +370,11 @@ if ($reservation['verification_deadline']) {
                     <textarea id="reject_reason" name="reject_reason" placeholder="Explain why this reservation is being rejected..."><?= htmlspecialchars($reservation['reject_reason'] ?? '') ?></textarea>
                 </div>
 
+                <div class="input-group approve-reason-group" id="approveReasonGroup">
+                    <label for="approval_reason">Approval Reason <span style="color:#166534;">*</span></label>
+                    <textarea id="approval_reason" name="approval_reason" placeholder="Explain how the user successfully approved..."><?= htmlspecialchars($reservation['approval_reason'] ?? '') ?></textarea>
+                </div>
+
                 <div class="input-group" style="margin-top: 0.75rem;">
                     <label for="admin_notes">Admin Notes (internal)</label>
                     <textarea id="admin_notes" name="admin_notes" placeholder="Internal notes visible only to admins..."><?= htmlspecialchars($reservation['admin_notes'] ?? '') ?></textarea>
@@ -386,13 +401,17 @@ if ($reservation['verification_deadline']) {
 </div>
 
 <script>
-function toggleRejectReason() {
     const status = document.getElementById('status').value;
-    const group = document.getElementById('rejectReasonGroup');
+    const rGroup = document.getElementById('rejectReasonGroup');
+    const aGroup = document.getElementById('approveReasonGroup');
+    
+    rGroup.classList.remove('show');
+    aGroup.classList.remove('show');
+    
     if (status === 'REJECTED') {
-        group.classList.add('show');
-    } else {
-        group.classList.remove('show');
+        rGroup.classList.add('show');
+    } else if (status === 'APPROVED') {
+        aGroup.classList.add('show');
     }
 }
 

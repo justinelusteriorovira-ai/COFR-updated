@@ -7,6 +7,7 @@ if (!isset($_SESSION["admin_id"])) {
 ?>
 <?php
 require_once("../config/db.php");
+require_once("../config/csrf.php");
 
 if (!isset($_GET["id"]) || !is_numeric($_GET["id"])) {
     header("Location: index.php");
@@ -28,6 +29,7 @@ if (!$facility) {
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    requireCSRF();
     $name = trim($_POST["name"]);
     $description = trim($_POST["description"]);
     $capacity = trim($_POST["capacity"]);
@@ -107,9 +109,10 @@ $current_allowed_days = explode(',', $facility['allowed_days']);
     <div class="form-container">
       <h2>Edit Facility: <?= htmlspecialchars($facility['name']) ?></h2>
       
-      <?php if (isset($error)) echo "<p class='error'>$error</p>"; ?>
+      <?php if (isset($error)) echo "<p class='error'>" . htmlspecialchars($error) . "</p>"; ?>
       
       <form method="POST">
+        <?php csrfField(); ?>
         <div class="grid-2">
             <div class="input-group">
                 <label for="name">Facility Name</label>

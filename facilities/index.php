@@ -6,6 +6,7 @@ if (!isset($_SESSION["admin_id"])) {
 }
 
 require_once("../config/db.php");
+require_once("../config/csrf.php");
 
 $result = $conn->query("SELECT f.*, 
     (SELECT COUNT(*) FROM reservations WHERE facility_id = f.id) as reservation_count
@@ -146,7 +147,11 @@ $result = $conn->query("SELECT f.*,
         <p id="deleteModalText">Are you sure?</p>
         <div class="modal-actions">
             <button class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
-            <a id="deleteConfirmBtn" href="#" class="btn-confirm-delete">Delete</a>
+            <form id="deleteForm" method="POST" action="delete.php" style="display:inline;">
+                <?php csrfField(); ?>
+                <input type="hidden" name="id" id="deleteIdInput" value="">
+                <button type="submit" id="deleteConfirmBtn" class="btn-confirm-delete">Delete</button>
+            </form>
         </div>
     </div>
 </div>
@@ -167,11 +172,11 @@ function showDeleteModal(el) {
     
     if (reservations > 0) {
         text.innerHTML = '<strong>"' + name + '"</strong> has <strong>' + reservations + ' reservation(s)</strong>. You must delete all reservations first before deleting this facility.';
-        btn.style.display = 'none';
+        document.getElementById('deleteForm').style.display = 'none';
     } else {
         text.innerHTML = 'Are you sure you want to permanently delete <strong>"' + name + '"</strong>? This action cannot be undone.';
-        btn.style.display = 'inline-block';
-        btn.href = 'delete.php?id=' + id;
+        document.getElementById('deleteForm').style.display = 'inline';
+        document.getElementById('deleteIdInput').value = id;
     }
     
     modal.classList.add('open');

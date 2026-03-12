@@ -1,8 +1,10 @@
 <?php
 session_start();
 require_once("../config/db.php");
+require_once("../config/csrf.php");
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    requireCSRF();
 
     $username = trim($_POST["username"]);
     $password = trim($_POST["password"]);
@@ -55,6 +57,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
   </nav>
 
     <form method="POST" class="loginForm">
+        <?php csrfField(); ?>
         <h2>Admin Login</h2>
 
 	<div class="input-group">

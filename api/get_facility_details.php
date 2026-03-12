@@ -1,6 +1,10 @@
 <?php
 // API: Returns facility details including pricing, hours, and rules
 require_once("../config/db.php");
+require_once("../config/api_auth.php");
+
+requireAPIAuth();
+
 header("Content-Type: application/json");
 
 $id = isset($_GET["id"]) ? intval($_GET["id"]) : 0;

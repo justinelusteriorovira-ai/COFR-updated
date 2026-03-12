@@ -6,12 +6,14 @@ if (!isset($_SESSION["admin_id"])) {
 }
 
 require_once("../config/db.php");
+require_once("../config/csrf.php");
 
 // Fetch facilities for dropdown
 $facilities = $conn->query("SELECT id, name, price_per_hour, price_per_day, open_time, close_time, advance_days_required, min_duration_hours, max_duration_hours, allowed_days, capacity FROM facilities WHERE status = 'AVAILABLE'");
 
 // Handle form submission
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    requireCSRF();
 
     $fb_name = trim($_POST["fb_name"]);
     $fb_user_id = trim($_POST["fb_user_id"]);
@@ -320,6 +322,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <?php endif; ?>
         
         <form method="POST" id="reservationForm">
+            <?php csrfField(); ?>
             <div class="grid-2">
                 <div class="input-group">
                     <label for="fb_name">Full Name <span style="color:#ef4444;">*</span></label>

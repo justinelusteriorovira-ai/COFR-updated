@@ -1,12 +1,17 @@
 <?php
 require_once("../config/db.php");
+require_once("../config/api_auth.php");
+
+requireAPIAuth();
 
 header("Content-Type: application/json");
 
-$facility_id = isset($_POST["facility_id"]) ? intval($_POST["facility_id"]) : 0;
-$reservation_date = isset($_POST["reservation_date"]) ? $_POST["reservation_date"] : "";
-$start_time = isset($_POST["start_time"]) ? $_POST["start_time"] : "";
-$end_time = isset($_POST["end_time"]) ? $_POST["end_time"] : "";
+// Accept JSON body or POST form data
+$data = getRequestData();
+$facility_id = isset($data["facility_id"]) ? intval($data["facility_id"]) : 0;
+$reservation_date = $data["reservation_date"] ?? "";
+$start_time = $data["start_time"] ?? "";
+$end_time = $data["end_time"] ?? "";
 
 if (
     $facility_id <= 0 ||
