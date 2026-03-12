@@ -61,11 +61,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 
     if (
-        empty($fb_name) || empty($fb_user_id) ||
+        empty($fb_name) ||
         empty($facility_id) || empty($reservation_date) ||
         empty($start_time) || empty($end_time)
     ) {
         $error = "All required fields must be filled.";
+    }
+
+    // Facebook ID required only for ONLINE reservations
+    if ($reservation['reservation_type'] === 'ONLINE' && empty($fb_user_id)) {
+        $error = "Facebook User ID is required for online reservations.";
     }
 
     if (!isset($error)) {
@@ -102,12 +107,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             SET fb_user_id = ?, fb_name = ?, facility_id = ?, 
                 reservation_date = ?, start_time = ?, end_time = ?, 
                 purpose = ?, status = ?, reject_reason = ?, admin_notes = ?,
-                num_attendees = ?, duration_hours = ?, total_cost = ?
+                num_attendees = ?, duration_hours = ?, total_cost = ?,
+                user_type = ?, id_number = ?, host_person = ?
             WHERE id = ?
         ");
 
         $stmt->bind_param(
-            "ssisssssssiddi",
+            "ssisssssssiddsssi",
             $fb_user_id,
             $fb_name,
             $facility_id,
@@ -121,6 +127,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $num_attendees,
             $duration_hours,
             $total_cost,
+            $_POST['user_type'],
+            $_POST['id_number'],
+            $_POST['host_person'],
             $id
         );
 
@@ -244,6 +253,7 @@ if ($reservation['verification_deadline']) {
                 <?php if ($reservation['verification_deadline']): ?>
                     <div class="meta-item"><span>Verify By: </span><span><?= $reservation['verification_deadline'] ?></span></div>
                 <?php endif; ?>
+                <div class="meta-item"><span>Reservation Type: </span><span style="color: <?= $reservation['reservation_type'] == 'WALK_IN' ? '#013c10' : '#1d4ed8' ?>;"><?= $reservation['reservation_type'] ?></span></div>
                 <?php if ($reservation['num_attendees']): ?>
                     <div class="meta-item"><span>Attendees: </span><span><?= $reservation['num_attendees'] ?></span></div>
                 <?php endif; ?>
@@ -253,14 +263,36 @@ if ($reservation['verification_deadline']) {
         <form method="POST">
             <div class="grid-2">
                 <div class="input-group">
-                    <label for="fb_name">Facebook Name</label>
+                    <label for="fb_name">Full Name</label>
                     <input type="text" id="fb_name" name="fb_name" value="<?= htmlspecialchars($reservation['fb_name']) ?>" required>
                 </div>
 
                 <div class="input-group">
-                    <label for="fb_user_id">Facebook User ID</label>
-                    <input type="text" id="fb_user_id" name="fb_user_id" value="<?= htmlspecialchars($reservation['fb_user_id']) ?>" required>
+                    <label for="user_type">User Type</label>
+                    <select id="user_type" name="user_type" onchange="toggleTypeFields()">
+                        <option value="FACEBOOK" <?= $reservation['user_type'] == 'FACEBOOK' ? 'selected' : '' ?>>Facebook User</option>
+                        <option value="STUDENT" <?= $reservation['user_type'] == 'STUDENT' ? 'selected' : '' ?>>Student (Walk-in)</option>
+                        <option value="STAFF" <?= $reservation['user_type'] == 'STAFF' ? 'selected' : '' ?>>Staff/Faculty (Walk-in)</option>
+                        <option value="OUTSIDE" <?= $reservation['user_type'] == 'OUTSIDE' ? 'selected' : '' ?>>Outside (Walk-in)</option>
+                    </select>
                 </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="input-group" id="fb_id_group">
+                    <label for="fb_user_id">Facebook / Messenger ID</label>
+                    <input type="text" id="fb_user_id" name="fb_user_id" value="<?= htmlspecialchars($reservation['fb_user_id'] ?? '') ?>">
+                </div>
+
+                <div class="input-group" id="id_number_group">
+                    <label for="id_number">Identification ID (Student/Emp ID)</label>
+                    <input type="text" id="id_number" name="id_number" value="<?= htmlspecialchars($reservation['id_number'] ?? '') ?>">
+                </div>
+            </div>
+
+            <div class="input-group" id="host_person_group">
+                <label for="host_person">Host / Contact Person (Inside School)</label>
+                <input type="text" id="host_person" name="host_person" value="<?= htmlspecialchars($reservation['host_person'] ?? '') ?>">
             </div>
 
             <div class="input-group">
@@ -363,8 +395,21 @@ function toggleRejectReason() {
         group.classList.remove('show');
     }
 }
+
+function toggleTypeFields() {
+    const type = document.getElementById('user_type').value;
+    const fbGroup = document.getElementById('fb_id_group');
+    const idGroup = document.getElementById('id_number_group');
+    const hostGroup = document.getElementById('host_person_group');
+
+    fbGroup.style.display = (type === 'FACEBOOK') ? 'block' : 'none';
+    idGroup.style.display = (type === 'STUDENT' || type === 'STAFF') ? 'block' : 'none';
+    hostGroup.style.display = (type === 'OUTSIDE') ? 'block' : 'none';
+}
+
 // Initialize on load
 toggleRejectReason();
+toggleTypeFields();
 </script>
 
 </body>

@@ -508,8 +508,26 @@ $qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=$qr_dat
                     <span class="value highlight"><?= htmlspecialchars($reservation["fb_name"]) ?></span>
                 </div>
                 <div class="info-item">
-                    <span class="label">Contact / ID</span>
-                    <span class="value"><?= htmlspecialchars($reservation["fb_user_id"]) ?></span>
+                    <span class="label"><?= $reservation['reservation_type'] == 'WALK_IN' ? 'Identification ID' : 'Contact / FB ID' ?></span>
+                    <span class="value">
+                        <?php 
+                        if ($reservation['reservation_type'] == 'WALK_IN') {
+                            echo htmlspecialchars($reservation['id_number'] ?: 'WALK-IN');
+                        } else {
+                            echo htmlspecialchars($reservation['fb_user_id']);
+                        }
+                        ?>
+                    </span>
+                </div>
+                <?php if ($reservation['user_type'] == 'OUTSIDE' && $reservation['host_person']): ?>
+                <div class="info-item">
+                    <span class="label">Host Person</span>
+                    <span class="value"><?= htmlspecialchars($reservation['host_person']) ?></span>
+                </div>
+                <?php endif; ?>
+                <div class="info-item">
+                    <span class="label">User Type</span>
+                    <span class="value"><?= htmlspecialchars($reservation['user_type']) ?></span>
                 </div>
                 <?php if ($reservation['num_attendees']): ?>
                 <div class="info-item">

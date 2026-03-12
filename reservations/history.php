@@ -180,7 +180,12 @@ $result = $stmt->get_result();
                     <tr>
                         <td><?= date('M d, Y', strtotime($row['reservation_date'])) ?></td>
                         <td><?= htmlspecialchars($row['facility_name']) ?></td>
-                        <td><?= htmlspecialchars($row['fb_name']) ?></td>
+                        <td>
+                            <?= htmlspecialchars($row['fb_name']) ?>
+                            <?php if ($row['reservation_type'] == 'WALK_IN'): ?>
+                                <br><small style="background:#dcfce7; color:#166534; padding:2px 4px; border-radius:4px; font-weight:600; font-size:0.65rem;">🚶 WALK-IN</small>
+                            <?php endif; ?>
+                        </td>
                         <td><?= date('h:i A', strtotime($row['start_time'])) ?> - <?= date('h:i A', strtotime($row['end_time'])) ?></td>
                         <td><?= htmlspecialchars($row['purpose']) ?></td>
                         <td>

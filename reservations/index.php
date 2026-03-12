@@ -397,7 +397,10 @@ $result = $conn->query("
         <p class="error"><?= htmlspecialchars($error) ?></p>
     <?php endif; ?>
     
-    <a href="create.php" class="add-btn">+ Create Reservation</a>
+    <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+        <a href="create.php" class="add-btn">+ Create Reservation</a>
+        <a href="walkin_create.php" class="add-btn">🚶 Walk-in Reservation</a>
+    </div>
     
     <?php if (isset($_GET['msg'])): ?>
         <p class="success"><?= htmlspecialchars($_GET['msg']) ?></p>
@@ -420,7 +423,12 @@ $result = $conn->query("
 
         <?php while($row = $result->fetch_assoc()): ?>
         <tr>
-            <td><?= htmlspecialchars($row["fb_name"]) ?></td>
+            <td>
+                <?= htmlspecialchars($row["fb_name"]) ?>
+                <?php if ($row['reservation_type'] == 'WALK_IN'): ?>
+                    <br><small style="background:#dcfce7; color:#166534; padding:2px 6px; border-radius:4px; font-weight:600; font-size:0.65rem;">🚶 WALK-IN</small>
+                <?php endif; ?>
+            </td>
             <td><?= htmlspecialchars($row["facility_name"]) ?></td>
             <td title="<?= htmlspecialchars($row['purpose'] ?? '') ?>">
                 <span style="font-size:0.8rem;color:#374151;"><?= htmlspecialchars(mb_strimwidth($row['purpose'] ?? '—', 0, 40, '...')) ?></span>

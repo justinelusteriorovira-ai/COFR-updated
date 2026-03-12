@@ -470,7 +470,7 @@ $upcoming_occ = $conn->query("
         <div class="header-user">Admin</div>
     </div>
 
-    <div class="container">
+    <div class="container loading" id="dashboardContainer">
     <h1>Welcome, Admin</h1>
     
     <?php if (isset($_GET['msg'])): ?>
@@ -482,28 +482,28 @@ $upcoming_occ = $conn->query("
     
     <!-- ═══════ Top Statistics Cards ═══════ -->
     <div class="stats-grid">
-        <div class="stat-card">
+        <div class="stat-card skeleton-item">
             <div class="stat-icon facilities-icon">🏢</div>
             <div class="stat-info">
                 <h3><?= $total_facilities ?></h3>
                 <p>Total Facilities</p>
             </div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card skeleton-item">
             <div class="stat-icon available-icon">✅</div>
             <div class="stat-info">
                 <h3><?= $available_facilities ?></h3>
                 <p>Available Facilities</p>
             </div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card skeleton-item">
             <div class="stat-icon reservations-icon">📅</div>
             <div class="stat-info">
                 <h3><?= $total_reservations ?></h3>
                 <p>Total Reservations</p>
             </div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card skeleton-item">
             <div class="stat-icon today-icon">📆</div>
             <div class="stat-info">
                 <h3><?= $today_reservations ?></h3>
@@ -513,7 +513,7 @@ $upcoming_occ = $conn->query("
     </div>
     
     <!-- ═══════ Ongoing Events Banner ═══════ -->
-    <div class="ongoing-banner">
+    <div class="ongoing-banner skeleton-item">
         <h2>🟢 Ongoing Events</h2>
         <?php if ($ongoing_events->num_rows > 0): ?>
             <?php while($ev = $ongoing_events->fetch_assoc()): 
@@ -566,19 +566,19 @@ $upcoming_occ = $conn->query("
     <!-- ═══════ Status Overview ═══════ -->
     <h2>Reservation Status Overview</h2>
     <div class="status-grid" style="grid-template-columns: repeat(4, 1fr);">
-        <div class="status-card pending">
+        <div class="status-card pending skeleton-item">
             <h3><?= $pending_reservations ?></h3>
             <p>Pending</p>
         </div>
-        <div class="status-card approved">
+        <div class="status-card approved skeleton-item">
             <h3><?= $approved_reservations ?></h3>
             <p>Approved</p>
         </div>
-        <div class="status-card rejected">
+        <div class="status-card rejected skeleton-item">
             <h3><?= $rejected_reservations ?></h3>
             <p>Rejected</p>
         </div>
-        <div class="status-card cancelled">
+        <div class="status-card cancelled skeleton-item">
             <h3><?= $cancelled_reservations ?></h3>
             <p>Cancelled</p>
         </div>
@@ -587,17 +587,17 @@ $upcoming_occ = $conn->query("
     <!-- ═══════ Revenue Summary ═══════ -->
     <h2>💰 Revenue Summary</h2>
     <div class="dashboard-grid-3">
-        <div class="revenue-card">
+        <div class="revenue-card skeleton-item">
             <div class="rev-label">Today's Revenue</div>
             <div class="rev-amount">₱<?= number_format($revenue_today, 2) ?></div>
             <div class="rev-sub"><?= date('F j, Y') ?></div>
         </div>
-        <div class="revenue-card">
+        <div class="revenue-card skeleton-item">
             <div class="rev-label">This Month</div>
             <div class="rev-amount">₱<?= number_format($revenue_month, 2) ?></div>
             <div class="rev-sub"><?= date('F Y') ?></div>
         </div>
-        <div class="revenue-card">
+        <div class="revenue-card skeleton-item">
             <div class="rev-label">Total Revenue</div>
             <div class="rev-amount">₱<?= number_format($revenue_total, 2) ?></div>
             <div class="rev-sub">All time (approved)</div>
@@ -734,6 +734,17 @@ $upcoming_occ = $conn->query("
         </a>
     </div>
 
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Remove skeleton loading after a short delay to simulate content loading
+            setTimeout(() => {
+                document.getElementById('dashboardContainer').classList.remove('loading');
+                const skeletons = document.querySelectorAll('.skeleton-item');
+                skeletons.forEach(el => el.classList.remove('skeleton-item'));
+            }, 800);
+        });
+    </script>
+
     <!-- ═══════ Upcoming Occasions ═══════ -->
     <?php if ($upcoming_occ->num_rows > 0): ?>
     <div class="upcoming-occasions">
@@ -770,25 +781,26 @@ $upcoming_occ = $conn->query("
             <tbody>
                 <?php while($row = $recent_reservations->fetch_assoc()): ?>
                 <tr>
-                    <td><?= htmlspecialchars($row['fb_name']) ?></td>
-                    <td><?= htmlspecialchars($row['facility_name']) ?></td>
-                    <td><?= $row['reservation_date'] ?></td>
-                    <td><?= substr($row['start_time'],0,5) ?> - <?= substr($row['end_time'],0,5) ?></td>
-                    <td>
+                    <td class="skeleton-item"><?= htmlspecialchars($row['fb_name']) ?></td>
+                    <td class="skeleton-item"><?= htmlspecialchars($row['facility_name']) ?></td>
+                    <td class="skeleton-item"><?= $row['reservation_date'] ?></td>
+                    <td class="skeleton-item"><?= substr($row['start_time'],0,5) ?> - <?= substr($row['end_time'],0,5) ?></td>
+                    <td class="skeleton-item">
                         <?php if ($row['total_cost'] > 0): ?>
                             <span style="font-weight:600;color:#013c10;">₱<?= number_format($row['total_cost'], 2) ?></span>
                         <?php else: ?>
                             <span style="color:#9ca3af;">Free</span>
                         <?php endif; ?>
                     </td>
-                    <td>
+                    <td class="skeleton-item">
                         <?php
                             $status_class = 'status-' . strtolower($row['status']);
                             echo "<span class=\"$status_class\">{$row['status']}</span>";
                         ?>
                     </td>
-                    <td>
+                    <td class="skeleton-item">
                         <a href="reservations/edit.php?id=<?= $row['id'] ?>" class="edit-link">Edit</a>
+                        <a href="reservations/print.php?id=<?= $row['id'] ?>" class="edit-link" target="_blank" style="background:#fef3c7; color:#d97706;">Print</a>
                         <a href="javascript:void(0)" class="delete-link" onclick="showDeleteModal(<?= $row['id'] ?>, '<?= htmlspecialchars($row['fb_name'], ENT_QUOTES) ?>')">Delete</a>
                     </td>
                 </tr>
