@@ -9,7 +9,7 @@ $base_path = $is_subfolder ? "../" : "";
 <nav class="top-navbar">
     <div class="nav-brand">
         <img src="https://enrollment.cefi.website/images/cefi-logo.png" alt="cefi-logo">
-        <span class="brand-text">CEFI ADMIN</span>
+        <span class="brand-text">CEFI ONLINE FACILITY RESERVATION</span>
     </div>
     
     <button class="mobile-menu-toggle" id="mobile-menu-btn" aria-label="Toggle Menu">
